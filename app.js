@@ -38,8 +38,9 @@ passport.use(
         };
         const match = await bcrypt.compare(password, user.password);
         if (!match) {
-          return done(null, false, { message: "Incorrect password" });
-        };
+            // passwords do not match!
+            return done(null, false, { message: "Incorrect password" })
+          }
         return done(null, user);
       } catch(err) {
         return done(err);
@@ -72,26 +73,45 @@ app.get("/", (req, res) => {
   
 app.get("/sign-up", (req, res) => res.render("sign-up-form"));
 
-app.post("/sign-up", bcrypt.hash(req.body.password, 10, async (err, hashedPassword) => {
+
+
+app.post("/sign-up",async (req, res, next) =>  {
+
     try {
-        const user = new User({
-          username: req.body.username,
-          password: req.body.password
-        });
-        const result = await user.save();
-        res.redirect("/");
+        bcrypt.hash(req.body.password, 10, async (err, hashedPassword) => {
+            if (err) {
+                return res.status(500).send('An error occured')
+            }
+
+            const user = new User({
+                username: req.body.username,
+                password: hashedPassword
+              });
+              
+              const result = await user.save();
+              res.redirect("/");
+          });
+
+        
+        
       } catch(err) {
         return next(err);
       };
-    }));
+    
+    });
   
 app.post(
     "/log-in",
     passport.authenticate("local", {
       successRedirect: "/",
-      failureRedirect: "/"
+      failureRedirect: "/failed-login"
     })
   );
+
+  app.get("/failed-login", (req, res, next) => {
+        res.render("failure");
+
+  })
   
 app.get("/log-out", (req, res, next) => {
 req.logout((err) => {
